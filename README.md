@@ -1,6 +1,6 @@
 # VIT Timetable Export Plugin
 
-This is a **Chrome Browser Extesion** that allows exporting a VIT Timetable as an `iCalendar` (`.ics`) file.
+This is a **Chrome Browser Extension** that allows exporting a VIT Timetable as an `iCalendar` (`.ics`) file.
 
 The exported `.ics` file can be imported into Google Calendar or any other Calendar application.
 
