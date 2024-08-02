@@ -1,0 +1,5 @@
+# exclude from archives
+.git*  export-ignore
+README.md  export-ignore
+images/  export-ignore
+context-menu-example/  export-ignore
