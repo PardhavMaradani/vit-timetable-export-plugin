@@ -1,7 +1,8 @@
 console.log("VIT Timetable Export Plugin : content-script.js loaded");
 
 // Add observer for b5-pagewrapper to find Timetable page
-// Add observer for page_outline to find b5-pagewrapper (if not already found)
+// Add observer for page-wrapper to find Calendar page
+// Add observer for page_outline to find b5-pagewrapper and page-wrapper (if not already found)
 function addObservers() {
     // Callback for changes to b5-pagewrapper div
     const b5pwCb = (mutationList, observer) => {
@@ -9,46 +10,74 @@ function addObservers() {
         if (sTT == null) {
             return;
         }
-        // Timetable page found, insert HTML - export button, from date and # of weeks
+        // Timetable page found, insert HTML - export button
         const iHtml =
             '<div class="col-sm-12 row">\n' +
             '    <div class="col-md-2"></div>\n' +
             '    <div class="col-md-6 mt-2">\n' +
+            '        <span>' + chrome.runtime.getManifest()["name"] + ' ' + chrome.runtime.getManifest()["version"] + ' : </span>\n' +
             '        <button id="exportCalendar" class="btn btn-primary">Export Calendar</button>\n' +
-            '        <label>from</label>\n' +
-            '        <input id="fromDate" type="text" class="col-sm-2">\n' +
-            '        <label>for</label>\n' +
-            '        <input id="rWeeks" type="number" class="col-sm-1" value="18">\n' +
-            '        <label>weeks</label>\n' +
             '    </div>\n' +
             '</div>\n';
         sTT.insertAdjacentHTML("beforeend", iHtml);
-        // Add current date
-        const fromDate = document.getElementById("fromDate");
-        fromDate.value = new Date().toLocaleDateString();
         // Add export button click handler
         const exportBtn = document.getElementById("exportCalendar");
         exportBtn.addEventListener('click', exportCalendar);
     };
+    // Callback for changes to page-wrapper div
+    const pwCb = (mutationList, observer) => {
+        let cV = document.getElementById("calendarView");
+        if (cV == null) {
+            return;
+        }
+        // Calendar page found, insert HTML - save, view and clear buttons
+        const iHtml =
+            '<div class="mb-2" style="width: 100%; float: left;">\n' +
+            '    <div style="width: 100%; float: left; text-align: center; display: block; margin: auto;">\n' +
+            '        <span>' + chrome.runtime.getManifest()["name"] + ' ' + chrome.runtime.getManifest()["version"] + ' : </span>\n' +
+            '        <button id="saveACal" class="btn btn-info">Save</button>\n' +
+            '        <button id="viewACal" class="btn btn-info">View saved</button>\n' +
+            '        <button id="clearACal" class="btn btn-info">Clear saved</button>\n' +
+            '    </div>\n' +
+            '</div>\n';
+        cV.insertAdjacentHTML("beforebegin", iHtml);
+        // Add click handlers for buttons
+        document.getElementById("saveACal").addEventListener("click", saveACal);
+        document.getElementById("viewACal").addEventListener("click", viewACal);
+        document.getElementById("clearACal").addEventListener('click', clearACal);
+   };
     // Callback for changes to page_outline div
     const poOCb = (mutationList, observer) => {
         b5pw = document.getElementById("b5-pagewrapper");
-        if (b5pw == null) {
-            return;
+        if (b5pw != null) {
+            // b5-pagewrapper found, observe for Timetable page
+            b5pwO.observe(b5pw, { childList: true });
         }
-        // b5-pagewrapper found, observe for Timetable page
-        b5pwO.observe(b5pw, { childList: true });
-        poO.disconnect();
+        pw = document.getElementById("page-wrapper");
+        if (pw != null) {
+            // page-wrapper found, observe for Calendar page
+            pwO.observe(pw, {childList: true});
+        }
+        if (b5pw != null && pw != null) {
+            // Can stop observing in page_outline
+            poO.disconnect();
+        }
     };
     // Use the recommended MutationObserver to observe for needed changes
-    const poO = new MutationObserver(poOCb);
     const b5pwO = new MutationObserver(b5pwCb);
     let b5pw = document.getElementById("b5-pagewrapper");
     if (b5pw != null) {
         // Direct b5-pagewrapper div found, observe for Timetable page
         b5pwO.observe(b5pw, { childList: true });
-    } else {
-        // b5-pagewrapper not found, observe for it in page_outline
+    }
+    const pwO = new MutationObserver(pwCb);
+    let pw = document.getElementById("page-wrapper");
+    if (pw != null) {
+        pwO.observe(pw, {childList: true });
+    }
+    const poO = new MutationObserver(poOCb);
+    if (b5pw == null || pw == null) {
+        // b5-pagewrapper or page-wrapper not found, observe for them in page_outline
         const po = document.getElementById("page_outline");
         if (po != null) {
             poO.observe(po, { childList: true });
@@ -59,46 +88,132 @@ function addObservers() {
     }
 }
 
-// Parse the first table that has course ID to name mapping
-function parseCourseNames() {
-    let courseNames = new Object();
-    const coursesTable = document.querySelector('table');
-    const rows = coursesTable.querySelectorAll('tr');
-    for (let r = 1; r < rows.length - 1; r++) {
-        // 2nd column, first p tag
-        const course = rows[r].querySelectorAll('td')[2].children[0].innerText;
-        const [id, name] = course.split('-'); // split id and name
-        courseNames[id.trim()] = name.trim();
+// Save Academic Caldendar details for selected Semester, Class Group and Month
+function saveACal(e) {
+    e.preventDefault(); // prevent default submit
+    const semIdEl = document.getElementById("semesterSubId");;
+    if (semIdEl.selectedIndex == 0) {
+        alert("Please select the Semester, Class Group and Month");
+        return;
     }
-    return courseNames;
+    const cgEl = document.getElementById("classGroupId");
+    if (cgEl.options[cgEl.selectedIndex].value == "COMB") {
+        alert("Please select specific Class Group");
+        return;
+    }
+    const month = document.querySelector("#list-wrapper h4").innerText;
+    if (month == '') {
+        alert("Please select the month");
+        return;
+    }
+    let cal = {};
+    // Parse all the columns of the calendar table
+    const cols = document.querySelectorAll("#list-wrapper td");
+    for (let c = 0; c < cols.length; c++) {
+        const col = cols[c];
+        const spans = col.querySelectorAll("span");
+        const day = spans[0].innerText;
+        if (day == '' || spans[1] == undefined) {
+            // Ignore non numbered cells
+            continue;
+        }
+        let info = spans[1].innerText;
+        let detail = '';
+        if (spans[2] != undefined) {
+            detail = spans[2].innerText;
+        }
+        cal[day] = info + '|' + detail
+    }
+    // Use localStorage to save details
+    let o = JSON.parse(localStorage.getItem("tt-plugin"));
+    if (o == null) {
+        o = {}; // create new object
+    }
+    const semId = semIdEl.options[semIdEl.selectedIndex].value;
+    if (!o.hasOwnProperty(semId)) {
+        o[semId] = {};
+    }
+    o[semId]["name"] = semIdEl.options[semIdEl.selectedIndex].innerText;
+    const cg = cgEl.options[cgEl.selectedIndex].innerText;
+    if (!o[semId].hasOwnProperty(cg)) {
+        o[semId][cg] = {};
+    }
+    o[semId][cg][month] = cal;
+    localStorage.setItem("tt-plugin", JSON.stringify(o));
+    alert('Saved Academic Calendar for ' + month);
 }
 
-// Formatted date as needed by ics format - YYYYMMDDT
+// View Academic Calendar details
+function viewACal(e) {
+    e.preventDefault(); // prevent default submit
+    // read from localStorage
+    let o = JSON.parse(localStorage.getItem("tt-plugin"));
+    if (o == null) {
+        alert("No saved Academic Calendar details found");
+        return;
+    }
+    // Output in simple tree format
+    let output = '';
+    for (let semId in o) {
+        output += o[semId]["name"] + '\n';
+        for (let cg in o[semId]) {
+            if (cg == "name") {
+                continue;
+            }
+            output += '    ' + cg + '\n';
+            for (let month in o[semId][cg]) {
+                output += '        ' + month + '\n';
+            }
+        }
+    }
+    alert(output);
+}
+
+// Clear Academic Calendar details
+function clearACal(e) {
+    e.preventDefault(); // prevent default submit
+    if (confirm("Are you sure you want to clear saved Academic Calendar details?")) {
+        localStorage.removeItem("tt-plugin");
+    }
+}
+
+// Parse the first table that has course details
+function parseCourses() {
+    let courses = {};
+    const table = document.querySelector('table');
+    const rows = table.querySelectorAll('tr');
+    for (let r = 1; r < rows.length - 1; r++) {
+        const cols = rows[r].querySelectorAll("td");
+        const course = cols[2].children[0].innerText; // 2nd column, first p tag
+        let [id, name] = course.split('-'); // split id and name
+        id = id.trim();
+        courses[id] = {};
+        courses[id]["name"] = name.trim();
+        courses[id]["classGroup"] = cols[1].innerText;
+        courses[id]["category"] = cols[4].innerText;
+        courses[id]["classId"] = cols[6].innerText;
+        courses[id]["slotVenue"] = cols[7].innerText.replace(/\r?\n/g, '').replace('-', '- ');
+        courses[id]["faculty"] = cols[8].innerText.replace(/\r?\n/g, '').replace('-', '- ');
+    }
+    return courses;
+}
+
+// Formatted date for ics - YYYYMMDD
 function getICSDate(date) {
     return (
         date.getFullYear().toString() +
         (date.getMonth() + 1).toString().padStart(2, '0') +
-        date.getDate().toString().padStart(2, '0') + 'T'
+        date.getDate().toString().padStart(2, '0')
     );
 }
 
-// Calendar events are created from the beginning of week (Monday)
-function getNextDate(inputDate, fromDate) {
-    if (fromDate == null) {
-        // Get Monday of the week of inputDate
-        const date = new Date(inputDate);
-        let day = date.getDay();
-        let diff = date.getDate() - day + (day == 0 ? -6 : 1);
-        return new Date(date.setDate(diff));
-    }
-    const date = new Date(fromDate);
-    date.setDate(fromDate.getDate() + 1);
-    return date;
+// Formatted date and time for ics - YYYYMMDDTHHMMSS
+function getICSDateTime(date, time) {
+    return getICSDate(date) + 'T' + time.replace(/:/g, '') + '00';
 }
 
 // Parse the main Timetable
-function parseTT(inputDate) {
-    const courseNames = parseCourseNames();
+function parseTT() {
     const tt = document.querySelector('#timeTableStyle');
     // Start and End times for theory (0) and lab (1) slots
     let sT = [];
@@ -122,9 +237,8 @@ function parseTT(inputDate) {
             }
         }
     }
-    let events = [];
+    let events = {};
     let day = "";
-    let date = null;
     // All other rows have weekday schedules
     for (let r = 4; r < rows.length; r++) {
         const tol = (r % 2 == 0) ? 0 : 1; // theory or lab
@@ -132,8 +246,8 @@ function parseTT(inputDate) {
         const cols = rows[r].querySelectorAll("td");
         if (tol == 0) {
             // Once for each weekday
-            day = cols[0].innerText.substring(0,2);
-            date = getNextDate(inputDate, date);
+            day = cols[0].innerText;
+            events[day] = [];
         }
         // All slots in each weekday (both theory and lab)
         for (let c = cs; c < cols.length; c++) {
@@ -146,22 +260,29 @@ function parseTT(inputDate) {
             const [slot, id, type, venue] = cellText.split('-');
             // Create the event object
             let event = {
-                name: courseNames[id],
+                id: id,
                 type: type,
                 venue: venue,
-                day: day,
-                start: getICSDate(date) + sT[tol][cc].replace(/:/g, '') + "00",
-                end: getICSDate(date) + eT[tol][cc].replace(/:/g, '') + "00",
+                start: sT[tol][cc],
+                end: eT[tol][cc]
             };
-            events.push(event);
+            events[day].push(event);
         }
     }
     return events;
 }
 
-// Generate ICS file from parsed timetable events
-function generateICS(calName, inputDate, rWeeks) {
-    const events = parseTT(inputDate);
+// Get Javascript month index based on month string (eg: Aug or August returns 7)
+function getMonthIndex(month) {
+    return new Date(Date.parse(month + " 1, 2024")).getMonth();
+}
+
+// Generate ICS file from parsed timetable events based on the academic calendar
+function generateICS(ac, calName) {
+    // Parse the course details
+    const courses = parseCourses();
+    // Parse the main timetable to get recurring weekly events
+    const weeklyEvents = parseTT();
     // Format copied from a Google Calendar export
     let iCal =
         'BEGIN:VCALENDAR\n' +
@@ -182,22 +303,86 @@ function generateICS(calName, inputDate, rWeeks) {
         'DTSTART:19700101T000000\n' +
         'END:STANDARD\n' +
         'END:VTIMEZONE\n';
-    // Iterate over all events
-    for (let i = 0; i < events.length; i++) {
-        const event = events[i];
-        iCal +=
-            'BEGIN:VEVENT\n' +
-            'UID:' + crypto.randomUUID() + '\n' +
-            'DTSTAMP:' + getICSDate(new Date()) + '000000' + '\n' +
-            'DTSTART;TZID=Asia/Kolkata:' + event['start'] + '\n' +
-            'DTEND;TZID=Asia/Kolkata:' + event['end'] + '\n' +
-            'RRULE:FREQ=WEEKLY;WKST=SU;COUNT=' + rWeeks + ';BYDAY=' + event['day'] + '\n' +
-            'LOCATION:' + event['venue'] + '\n' +
-            'SUMMARY:(' + event['type'] + ') ' + event['name'] + '\n' +
-            'END:VEVENT\n';
+    // Iterate over all days of academic calendar
+    const weekdays = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+    for (let monthYear in ac) {
+        const [month, year] = monthYear.split(' ');
+        const monthIndex = getMonthIndex(month);
+        for (let day in ac[monthYear]) {
+            const [info, detail] = ac[monthYear][day].split('|');
+            let addFullDayEvent = true;
+            const date = new Date(year, monthIndex, day);
+            if (info.startsWith('Instructional Day')) {
+                // Instructional Day
+                addFullDayEvent = false;
+                if (detail != '') {
+                    addFullDayEvent = true;
+                }
+                let weekday = weekdays[date.getDay()];
+                let events = weeklyEvents[weekday];
+                if (events.length == 0) {
+                    // Check for any other weekday order
+                    const i = detail.indexOf(' Day Order');
+                    if (i != -1) {
+                        weekday = detail.substring(1, i).substring(0, 3).toUpperCase();
+                        events = weeklyEvents[weekday];
+                    }
+                }
+                // Add events for the weekday
+                for (let i = 0; i < events.length; i++) {
+                    const event = events[i];
+                    const courseId = event['id'];
+                    iCal +=
+                        'BEGIN:VEVENT\n' +
+                        'UID:' + crypto.randomUUID() + '\n' +
+                        'DTSTAMP:' + getICSDateTime(new Date(), '00:00') + '\n' +
+                        'DTSTART;TZID=Asia/Kolkata:' + getICSDateTime(date, event['start']) + '\n' +
+                        'DTEND;TZID=Asia/Kolkata:' + getICSDateTime(date, event['end']) + '\n' +
+                        'LOCATION:' + event['venue'] + '\n' +
+                        'SUMMARY:(' + event['type'] + ') ' + courses[courseId]["name"] + '\n' +
+                        'DESCRIPTION:Class Group: ' + courses[courseId]["classGroup"] + '\\n' +
+                            'Category: ' + courses[courseId]["category"] + '\\n' +
+                            'Class Id: ' + courses[courseId]["classId"] + '\\n' +
+                            'Slot/Venue: ' + courses[courseId]["slotVenue"] + '\\n' +
+                            'Faculty: ' + courses[courseId]["faculty"] + '\n' +
+                        'END:VEVENT\n';
+                }
+            }
+            if (addFullDayEvent) {
+                // Holidays, no instructional days, instructional days with more details
+                var nextDate = new Date(date);
+                nextDate.setDate(date.getDate() + 1);
+                iCal +=
+                    'BEGIN:VEVENT\n' +
+                    'UID:' + crypto.randomUUID() + '\n' +
+                    'DTSTAMP:' + getICSDateTime(new Date(), '00:00') + '\n' +
+                    'DTSTART;TZID=Asia/Kolkata:' + getICSDate(date) + '\n' +
+                    'DTEND;TZID=Asia/Kolkata:' + getICSDate(nextDate) + '\n' +
+                    'SUMMARY:' + info + ' ' + detail + '\n' +
+                    'END:VEVENT\n';
+
+            }
+        }
     }
     iCal += 'END:VCALENDAR\n';
     return iCal;
+}
+
+// Verify that the class group is the same for all courses
+function verifyAndGetClassGroup() {
+    let cg = null;
+    const table = document.querySelector('table');
+    const rows = table.querySelectorAll('tr');
+    for (let r = 1; r < rows.length - 1; r++) {
+        const cols = rows[r].querySelectorAll("td");
+        if (cg == null) {
+            cg = cols[1].innerText;
+        }
+        if (cols[1].innerText != cg) {
+            return null;
+        }
+    }
+    return cg;
 }
 
 // Click handler to export as ICS file
@@ -208,21 +393,30 @@ function exportCalendar(e) {
         alert("Please choose a semster...");
         return;
     }
-    const fromDate = document.getElementById('fromDate').value;
-    const [day, month, year] = fromDate.split("/");
-    const ts = Date.parse(`${month}/${day}/${year}`);
-    if (isNaN(ts)) {
-        alert("Invalid date. Need in valid DD/MM/YYYY format");
+    const semId = semSubId.options[semSubId.selectedIndex].value;
+    const semester = semSubId.options[semSubId.selectedIndex].innerText;
+    let pluginData = JSON.parse(localStorage.getItem("tt-plugin"));
+    let ac = null;
+    const cg = verifyAndGetClassGroup();
+    if (cg == null) {
+        alert('Only a single common Class Group is currently supported');
         return;
     }
-    const inputDate = new Date(ts);
-    const rWeeks = document.getElementById('rWeeks');
-    if (rWeeks.value < 1 || rWeeks.value > 26) {
-        rWeeks.value = 18; // default weeks for any error cases
+    if (pluginData != null) {
+        ac = pluginData[semId][cg];
+    }
+    if (pluginData == null || ac == null) {
+        alert(
+            'No saved Academic Calendar details found for the selected semester.\n' +
+            'Please save from [Academics > Academic Calendar] and try again.\n' +
+            'Use Semester "' + semester + '" and Class Group "' + cg + '"\n'
+        );
+        return;
     }
     // Use the selected semester as timetable name and ICS filename
-    const ttName = 'VIT-' + semSubId.options[semSubId.selectedIndex].innerText.replace(/ /g, '-');
-    const iCal = generateICS(ttName, inputDate, rWeeks.value);
+    const ttName = 'VIT-' + semester.replace(/ /g, '-');
+    // Generate the actual ICS data
+    const iCal = generateICS(ac, ttName);
     // Create a dummy hidden link to download
     const link = document.createElement('a');
     const url = URL.createObjectURL(
@@ -234,7 +428,7 @@ function exportCalendar(e) {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    console.log("VIT Timetable Export Plugin : Exported as '" + ttName + ".ics" + "' (" + rWeeks.value + " weeks)");
+    console.log("VIT Timetable Export Plugin : Exported as '" + ttName + ".ics'");
 }
 
 // This is the entry point
