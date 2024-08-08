@@ -1,6 +1,6 @@
 # VIT Timetable Export Plugin
 
-This is a **Chrome Browser Extension** that allows exporting a VIT Timetable as an `iCalendar` (`.ics`) file.
+This is a **Chrome Browser Extension** that allows exporting a VIT Timetable with a single click as an `iCalendar` (`.ics`) file.
 
 All the events are created as per the Academic Calendar for a given Semester, which includes extra instructional days (with specified day order), holidays and exam dates.
 
@@ -25,32 +25,25 @@ You should see something like this after the above steps:
 
 ## Usage
 
-- Login to VTOP and first navigate to the Academics Calendar page
-  - Under `Academics > Academics Calendar`
-- With the plugin installed, you should see something like this (with `Save`, `View saved` and `Clear saved` buttons):
-
-> ![VIT Timetable Export Plugin - Academics Calendar view](images/academics-calendar-view-1.png)
-
-- Select the relevant semester and the correct Class Group
-  - The `Academics > Time table` page shows the Class Group in the 2nd column of the first table
-- Select **each** of the displayed months to display the calendar for that month and then click on the `Save` button for **each** one of them
-- Once **all** the months are selected and saved, clicking on the `View saved` button should show somthing like this:
-  - In the example below, academic calendar details for the months of 'July, August, September, October and November 2024' for the 'Fall Semester 2024-25' and 'General Freshers' class group are saved
-
-> ![VIT Timetable Export Plugin - Academics Calendar view](images/academics-calendar-view-2.png)
-
-- Now, navigate to the Timetable page
+- Login to VTOP and navigate to the Timetable page
   - Under `Academics > Time table`
 - With the plugin installed, you should see something like this (with an `Export Calendar` button):
 
 > ![VIT Timetable Export Plugin - Export Button](images/export-button.png)
 
-- Select the same semester for which academic calendar details are saved above and click on the `Export Calendar` button
-  - If you haven't saved the academic calendar details as mentioned previously, you will be alerted with error messages.  Please follow the instructions and try again
+- Select the relevant semester and click on the `Export Calendar` button
+
+> ![VIT Timetable Export Plugin - Semester Selected](images/timetable-semester-selected.png)
+
+- The page will automatically navigate to the `Academics Calendar` page, populate the correct Semester, Class Group and iterate through all the months to generate the `.ics` file
 - The `.ics` file will be exported as shown below:
   - The filename will be `VIT-<semester-info>.ics`
 
 > ![VIT Timetable Export Plugin - Exported ICS File](images/exported-ics-file.png)
+
+- Here is the whole process in action:
+
+> ![VIT Timetable Export Plugin - in action](images/vit-tt-export.gif)
 
 ## Import ICS into Google Calendar
 
@@ -90,7 +83,9 @@ To import into Google Calendar
 
 ## How it works
 
-> v1.1 and above uses the academic calendar details for a given semester to create all the events, including additional instructional days, holidays and exams.  All the details mentioned below still apply, with a few more changes to observe for the `Academics Calendar` page, parsing the calendars on that page and saving them to `localStorage` to be later used in the `Time table` page
+> v1.2 requires a single user click after the semester is selected in the Timetable page to generate the `.ics` file.  After parsing the course details and weekly timetable in the Timetable page, the page automatically navigates to the Academic Calendar page, populates the correct Semester, Class Group and clicks through each of the months, parses them and finally generates the full `.ics` file.
+
+> v1.1 uses the academic calendar details for a given semester to create all the events, including additional instructional days, holidays and exams.  All the details mentioned below still apply, with a few more changes to observe for the `Academics Calendar` page, parsing the calendars on that page and saving them to `localStorage` to be later used in the `Time table` page
 
 All of VTOP's content is dynamically generated.  There is a single URL `https://vtop.vit.ac.in/vtop/content` under which all content resides and the browser does not navigate to different pages for different sections.  The code to export the Timetable data needs to run on the `Time Table` page.  There are a few ways to achieve this, all of which require code to be injected as [Content Scripts](https://developer.chrome.com/docs/extensions/develop/concepts/content-scripts#capabilities) and run:
 

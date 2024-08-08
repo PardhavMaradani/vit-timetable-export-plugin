@@ -1,8 +1,7 @@
 console.log("VIT Timetable Export Plugin : content-script.js loaded");
 
 // Add observer for b5-pagewrapper to find Timetable page
-// Add observer for page-wrapper to find Calendar page
-// Add observer for page_outline to find b5-pagewrapper and page-wrapper (if not already found)
+// Add observer for page_outline to find b5-pagewrapper (if not already found)
 function addObservers() {
     // Callback for changes to b5-pagewrapper div
     const b5pwCb = (mutationList, observer) => {
@@ -15,7 +14,6 @@ function addObservers() {
             '<div class="col-sm-12 row">\n' +
             '    <div class="col-md-2"></div>\n' +
             '    <div class="col-md-6 mt-2">\n' +
-            '        <span>' + chrome.runtime.getManifest()["name"] + ' ' + chrome.runtime.getManifest()["version"] + ' : </span>\n' +
             '        <button id="exportCalendar" class="btn btn-primary">Export Calendar</button>\n' +
             '    </div>\n' +
             '</div>\n';
@@ -24,43 +22,13 @@ function addObservers() {
         const exportBtn = document.getElementById("exportCalendar");
         exportBtn.addEventListener('click', exportCalendar);
     };
-    // Callback for changes to page-wrapper div
-    const pwCb = (mutationList, observer) => {
-        let cV = document.getElementById("calendarView");
-        if (cV == null) {
-            return;
-        }
-        // Calendar page found, insert HTML - save, view and clear buttons
-        const iHtml =
-            '<div class="mb-2" style="width: 100%; float: left;">\n' +
-            '    <div style="width: 100%; float: left; text-align: center; display: block; margin: auto;">\n' +
-            '        <span>' + chrome.runtime.getManifest()["name"] + ' ' + chrome.runtime.getManifest()["version"] + ' : </span>\n' +
-            '        <button id="saveACal" class="btn btn-info">Save</button>\n' +
-            '        <button id="viewACal" class="btn btn-info">View saved</button>\n' +
-            '        <button id="clearACal" class="btn btn-info">Clear saved</button>\n' +
-            '    </div>\n' +
-            '</div>\n';
-        cV.insertAdjacentHTML("beforebegin", iHtml);
-        // Add click handlers for buttons
-        document.getElementById("saveACal").addEventListener("click", saveACal);
-        document.getElementById("viewACal").addEventListener("click", viewACal);
-        document.getElementById("clearACal").addEventListener('click', clearACal);
-   };
     // Callback for changes to page_outline div
     const poOCb = (mutationList, observer) => {
         b5pw = document.getElementById("b5-pagewrapper");
         if (b5pw != null) {
             // b5-pagewrapper found, observe for Timetable page
             b5pwO.observe(b5pw, { childList: true });
-        }
-        pw = document.getElementById("page-wrapper");
-        if (pw != null) {
-            // page-wrapper found, observe for Calendar page
-            pwO.observe(pw, {childList: true});
-        }
-        if (b5pw != null && pw != null) {
-            // Can stop observing in page_outline
-            poO.disconnect();
+            observer.disconnect();
         }
     };
     // Use the recommended MutationObserver to observe for needed changes
@@ -70,14 +38,9 @@ function addObservers() {
         // Direct b5-pagewrapper div found, observe for Timetable page
         b5pwO.observe(b5pw, { childList: true });
     }
-    const pwO = new MutationObserver(pwCb);
-    let pw = document.getElementById("page-wrapper");
-    if (pw != null) {
-        pwO.observe(pw, {childList: true });
-    }
     const poO = new MutationObserver(poOCb);
-    if (b5pw == null || pw == null) {
-        // b5-pagewrapper or page-wrapper not found, observe for them in page_outline
+    if (b5pw == null) {
+        // b5-pagewrapper not found, observe for it in page_outline
         const po = document.getElementById("page_outline");
         if (po != null) {
             poO.observe(po, { childList: true });
@@ -88,24 +51,8 @@ function addObservers() {
     }
 }
 
-// Save Academic Caldendar details for selected Semester, Class Group and Month
-function saveACal(e) {
-    e.preventDefault(); // prevent default submit
-    const semIdEl = document.getElementById("semesterSubId");;
-    if (semIdEl.selectedIndex == 0) {
-        alert("Please select the Semester, Class Group and Month");
-        return;
-    }
-    const cgEl = document.getElementById("classGroupId");
-    if (cgEl.options[cgEl.selectedIndex].value == "COMB") {
-        alert("Please select specific Class Group");
-        return;
-    }
-    const month = document.querySelector("#list-wrapper h4").innerText;
-    if (month == '') {
-        alert("Please select the month");
-        return;
-    }
+// Parse dispayed Academic Caldendar month
+function parseACal() {
     let cal = {};
     // Parse all the columns of the calendar table
     const cols = document.querySelectorAll("#list-wrapper td");
@@ -124,57 +71,7 @@ function saveACal(e) {
         }
         cal[day] = info + '|' + detail
     }
-    // Use localStorage to save details
-    let o = JSON.parse(localStorage.getItem("tt-plugin"));
-    if (o == null) {
-        o = {}; // create new object
-    }
-    const semId = semIdEl.options[semIdEl.selectedIndex].value;
-    if (!o.hasOwnProperty(semId)) {
-        o[semId] = {};
-    }
-    o[semId]["name"] = semIdEl.options[semIdEl.selectedIndex].innerText;
-    const cg = cgEl.options[cgEl.selectedIndex].innerText;
-    if (!o[semId].hasOwnProperty(cg)) {
-        o[semId][cg] = {};
-    }
-    o[semId][cg][month] = cal;
-    localStorage.setItem("tt-plugin", JSON.stringify(o));
-    alert('Saved Academic Calendar for ' + month);
-}
-
-// View Academic Calendar details
-function viewACal(e) {
-    e.preventDefault(); // prevent default submit
-    // read from localStorage
-    let o = JSON.parse(localStorage.getItem("tt-plugin"));
-    if (o == null) {
-        alert("No saved Academic Calendar details found");
-        return;
-    }
-    // Output in simple tree format
-    let output = '';
-    for (let semId in o) {
-        output += o[semId]["name"] + '\n';
-        for (let cg in o[semId]) {
-            if (cg == "name") {
-                continue;
-            }
-            output += '    ' + cg + '\n';
-            for (let month in o[semId][cg]) {
-                output += '        ' + month + '\n';
-            }
-        }
-    }
-    alert(output);
-}
-
-// Clear Academic Calendar details
-function clearACal(e) {
-    e.preventDefault(); // prevent default submit
-    if (confirm("Are you sure you want to clear saved Academic Calendar details?")) {
-        localStorage.removeItem("tt-plugin");
-    }
+    return cal;
 }
 
 // Parse the first table that has course details
@@ -196,20 +93,6 @@ function parseCourses() {
         courses[id]["faculty"] = cols[8].innerText.replace(/\r?\n/g, '').replace('-', '- ');
     }
     return courses;
-}
-
-// Formatted date for ics - YYYYMMDD
-function getICSDate(date) {
-    return (
-        date.getFullYear().toString() +
-        (date.getMonth() + 1).toString().padStart(2, '0') +
-        date.getDate().toString().padStart(2, '0')
-    );
-}
-
-// Formatted date and time for ics - YYYYMMDDTHHMMSS
-function getICSDateTime(date, time) {
-    return getICSDate(date) + 'T' + time.replace(/:/g, '') + '00';
 }
 
 // Parse the main Timetable
@@ -272,17 +155,39 @@ function parseTT() {
     return events;
 }
 
+// Formatted date for ics - YYYYMMDD
+function getICSDate(date) {
+    return (
+        date.getFullYear().toString() +
+        (date.getMonth() + 1).toString().padStart(2, '0') +
+        date.getDate().toString().padStart(2, '0')
+    );
+}
+
+// Formatted date and time for ics - YYYYMMDDTHHMMSS
+function getICSDateTime(date, time) {
+    return getICSDate(date) + 'T' + time.replace(/:/g, '') + '00';
+}
+
 // Get Javascript month index based on month string (eg: Aug or August returns 7)
 function getMonthIndex(month) {
     return new Date(Date.parse(month + " 1, 2024")).getMonth();
 }
 
+// To create unique uid's for events - to avoid duplicates when importing again
+// A simple hash from: https://gist.github.com/jlevy/c246006675becc446360a798e2b2d781
+const simpleHash = (str) => {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = (hash << 5) - hash + char;
+    }
+    // Convert to 32bit unsigned integer in base 36 and pad with "0" to ensure length is 7.
+    return (hash >>> 0).toString(36).padStart(7, "0");
+};
+
 // Generate ICS file from parsed timetable events based on the academic calendar
-function generateICS(ac, calName) {
-    // Parse the course details
-    const courses = parseCourses();
-    // Parse the main timetable to get recurring weekly events
-    const weeklyEvents = parseTT();
+function generateICS(courses, weeklyEvents, ac, calName) {
     // Format copied from a Google Calendar export
     let iCal =
         'BEGIN:VCALENDAR\n' +
@@ -306,7 +211,7 @@ function generateICS(ac, calName) {
     // Iterate over all days of academic calendar
     const weekdays = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
     for (let monthYear in ac) {
-        const [month, year] = monthYear.split(' ');
+        const [month, year] = monthYear.split('-');
         const monthIndex = getMonthIndex(month);
         for (let day in ac[monthYear]) {
             const [info, detail] = ac[monthYear][day].split('|');
@@ -332,12 +237,14 @@ function generateICS(ac, calName) {
                 for (let i = 0; i < events.length; i++) {
                     const event = events[i];
                     const courseId = event['id'];
+                    const start = getICSDateTime(date, event["start"]);
+                    const end = getICSDateTime(date, event["end"]);
                     iCal +=
                         'BEGIN:VEVENT\n' +
-                        'UID:' + crypto.randomUUID() + '\n' +
+                        'UID:' + simpleHash(event.toString() + start + end) + '\n' +
                         'DTSTAMP:' + getICSDateTime(new Date(), '00:00') + '\n' +
-                        'DTSTART;TZID=Asia/Kolkata:' + getICSDateTime(date, event['start']) + '\n' +
-                        'DTEND;TZID=Asia/Kolkata:' + getICSDateTime(date, event['end']) + '\n' +
+                        'DTSTART;TZID=Asia/Kolkata:' + start + '\n' +
+                        'DTEND;TZID=Asia/Kolkata:' + end + '\n' +
                         'LOCATION:' + event['venue'] + '\n' +
                         'SUMMARY:(' + event['type'] + ') ' + courses[courseId]["name"] + '\n' +
                         'DESCRIPTION:Class Group: ' + courses[courseId]["classGroup"] + '\\n' +
@@ -352,12 +259,14 @@ function generateICS(ac, calName) {
                 // Holidays, no instructional days, instructional days with more details
                 var nextDate = new Date(date);
                 nextDate.setDate(date.getDate() + 1);
+                const start = getICSDate(date);
+                const end = getICSDate(nextDate);
                 iCal +=
                     'BEGIN:VEVENT\n' +
-                    'UID:' + crypto.randomUUID() + '\n' +
+                    'UID:' + simpleHash(info + detail + start + end) + '\n' +
                     'DTSTAMP:' + getICSDateTime(new Date(), '00:00') + '\n' +
-                    'DTSTART;TZID=Asia/Kolkata:' + getICSDate(date) + '\n' +
-                    'DTEND;TZID=Asia/Kolkata:' + getICSDate(nextDate) + '\n' +
+                    'DTSTART;TZID=Asia/Kolkata:' + start + '\n' +
+                    'DTEND;TZID=Asia/Kolkata:' + end + '\n' +
                     'SUMMARY:' + info + ' ' + detail + '\n' +
                     'END:VEVENT\n';
 
@@ -366,6 +275,101 @@ function generateICS(ac, calName) {
     }
     iCal += 'END:VCALENDAR\n';
     return iCal;
+}
+
+// Save the ics file
+function saveICS(ics, ttName) {
+    // Create a dummy hidden link to download
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(
+        new Blob([ics], { type: 'text/calendar; charset=utf-8;' })
+    );
+    link.setAttribute('href', url);
+    link.setAttribute("download", ttName + ".ics");
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    console.log("VIT Timetable Export Plugin : Exported as '" + ttName + ".ics'");
+}
+
+// Parse Academics Calender and Export Timetable Calendar
+function parseACalAndExport() {
+    const data = JSON.parse(localStorage.getItem("tt-plugin"));
+    // Reset localStorage for plugin
+    localStorage.removeItem("tt-plugin");
+    if (data == null) {
+        alert("Error: Please visit the Timetable page and try again");
+        return;
+    }
+    // Callback after Class Group is updated
+    const afterClassGroupChange = function () {
+        const months = document.querySelectorAll("#getListForSemester a");
+        // Function to click on each month of the academic calendar
+        function selectMonth(i) {
+            const month = months[i];
+            const monthClick = `
+                const month = this.innerText;
+                $(document).ajaxStop(function () {
+                    $(this).unbind('ajaxStop');
+                    window.dispatchEvent(new CustomEvent('reset', {detail: {'month': month,'n': ` + i + `}}));
+                });
+                this.click();
+                this.removeAttribute('onreset');
+            `;
+            month.setAttribute("onreset", monthClick);
+            month.dispatchEvent(new CustomEvent("reset"));
+        }
+        let ac = {}
+        // Callback after academic calendar for month is displayed
+        const afterMonthClick = function(event) {
+            const month = event.detail.month;
+            // Parse the displayed month
+            ac[month] = parseACal();
+            if (event.detail.n < months.length - 1) {
+                // Select all the months in the academic calendar
+                selectMonth(event.detail.n + 1);
+            } else {
+                // All months parsed
+                window.onreset = null;
+                const ttName = "VIT-" + data['semester'].replace(/ /g, "-");
+                // Generate and save ICS
+                const ics = generateICS(data['courses'], data['tt'], ac, ttName);
+                saveICS(ics, ttName);
+            }
+        };
+        window.onreset = afterMonthClick;
+        selectMonth(0);
+    }
+    const onreset = `
+        $(document).ajaxStop(function () {
+            $(this).unbind('ajaxStop');
+            window.dispatchEvent(new CustomEvent("reset"));
+        });
+        this.removeAttribute('onreset');
+    `;
+    // Callback after semester is updated
+    const afterSemesterChange = function () {
+        const cg = document.getElementById("classGroupId");
+        for (let i = 0; i < cg.options.length; i++) {
+            if (cg.options[i].innerText == data['classGroup']) {
+                cg.options[i].selected = true;
+                break;
+            }
+        }
+        window.onreset = afterClassGroupChange;
+        // Change Class Group as per Timetable page
+        cg.setAttribute("onreset", onreset);
+        cg.dispatchEvent(new CustomEvent("reset"));
+        cg.dispatchEvent(new CustomEvent("change"));
+    }
+    window.onreset = afterSemesterChange;
+    // Change semester as per Timetable page
+    const semId = document.getElementById("semesterSubId");
+    semId.setAttribute("onreset", onreset);
+    semId.dispatchEvent(new CustomEvent('reset'));
+    semId.selectedIndex = document.querySelector('#semesterSubId option[value=' + data['semId'] + ']').index;
+    semId.dispatchEvent(new CustomEvent('change'));
 }
 
 // Verify that the class group is the same for all courses
@@ -393,42 +397,35 @@ function exportCalendar(e) {
         alert("Please choose a semster...");
         return;
     }
-    const semId = semSubId.options[semSubId.selectedIndex].value;
-    const semester = semSubId.options[semSubId.selectedIndex].innerText;
-    let pluginData = JSON.parse(localStorage.getItem("tt-plugin"));
-    let ac = null;
     const cg = verifyAndGetClassGroup();
     if (cg == null) {
         alert('Only a single common Class Group is currently supported');
         return;
     }
-    if (pluginData != null) {
-        ac = pluginData[semId][cg];
-    }
-    if (pluginData == null || ac == null) {
-        alert(
-            'No saved Academic Calendar details found for the selected semester.\n' +
-            'Please save from [Academics > Academic Calendar] and try again.\n' +
-            'Use Semester "' + semester + '" and Class Group "' + cg + '"\n'
-        );
-        return;
-    }
-    // Use the selected semester as timetable name and ICS filename
-    const ttName = 'VIT-' + semester.replace(/ /g, '-');
-    // Generate the actual ICS data
-    const iCal = generateICS(ac, ttName);
-    // Create a dummy hidden link to download
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(
-        new Blob([iCal], { type: 'text/calendar; charset=utf-8;' })
-    );
-    link.setAttribute('href', url);
-    link.setAttribute("download", ttName + ".ics");
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    console.log("VIT Timetable Export Plugin : Exported as '" + ttName + ".ics'");
+    const semId = semSubId.options[semSubId.selectedIndex].value;
+    const semester = semSubId.options[semSubId.selectedIndex].innerText;
+    let data = {
+        "semId": semId,
+        "semester": semester,
+        "classGroup": cg,
+        "courses": parseCourses(),
+        "tt": parseTT()
+    };
+    // Save to localStorage for use in Academics Calendar page
+    localStorage.setItem("tt-plugin", JSON.stringify(data));
+    // Navigate to Academics Calendar page
+    // Hack inspired by https://www.youtube.com/watch?v=HVugG0psJkM
+    let redirectToACal = `
+        $(document).ajaxStop(function () {
+            $(this).unbind('ajaxStop');
+            window.dispatchEvent(new CustomEvent("reset"));
+        });
+        document.querySelector('a[data-url="academics/common/CalendarPreview"]').click();
+        this.removeAttribute('onreset');
+    `;
+    window.onreset = parseACalAndExport;
+    semSubId.setAttribute('onreset', redirectToACal);
+    semSubId.dispatchEvent(new CustomEvent("reset"));
 }
 
 // This is the entry point
