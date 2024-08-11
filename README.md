@@ -2,9 +2,9 @@
 
 This is a **Chrome Browser Extension** that allows exporting a VIT Timetable with a single click as an `iCalendar` (`.ics`) file.
 
-All the events are created as per the Academic Calendar for a given Semester, which includes extra instructional days (with specified day order), holidays and exam dates.
+All the events are created as per the Academic Calendar for a given Semester, which includes extra instructional days (with specified day order), holidays and exam dates.  Additional standalone `.ics` files can also be exported for **'Exam Schedules'** and **'Assignment Upload Schedules'**.
 
-The exported `.ics` file can be imported into Google Calendar or any other Calendar application.
+The exported `.ics` files can be imported into Google Calendar or any other Calendar application.
 
 - [Installation](#installation)
 - [Usage](#usage)
@@ -25,25 +25,49 @@ You should see something like this after the above steps:
 
 ## Usage
 
-- Login to VTOP and navigate to the Timetable page
-  - Under `Academics > Time table`
-- With the plugin installed, you should see something like this (with an `Export Calendar` button):
+With this plugin installed, `.ics` files can be exported from the following pages in VTOP:
 
-> ![VIT Timetable Export Plugin - Export Button](images/export-button.png)
+- [Timetable page](#timetable-page)
+  - `Academics > Time Table`
+- [Assignment Upload page](#assignment-upload-page)
+  - `Academics > Digital Assignment Upload`
+- [Exam Schedule page](#exam-schedule-page)
+  - `Examination > Exam Schedule`
 
-- Select the relevant semester and click on the `Export Calendar` button
+### Timetable page
 
-> ![VIT Timetable Export Plugin - Semester Selected](images/timetable-semester-selected.png)
+- Go to the **'Timetable'** page under `Academics > Time Table`
+- Select the semester
+- `Right Click > Export ICS File`
+  - The page will automatically navigate to the **'Academics Calendar'** page, populate the correct Semester, Class Group and iterate through all the months to generate the `.ics` file
+- The `.ics` will be exported as `VIT-<semester-info>.ics`
 
-- The page will automatically navigate to the `Academics Calendar` page, populate the correct Semester, Class Group and iterate through all the months to generate the `.ics` file
-- The `.ics` file will be exported as shown below:
-  - The filename will be `VIT-<semester-info>.ics`
+Here is the whole process in action:
 
-> ![VIT Timetable Export Plugin - Exported ICS File](images/exported-ics-file.png)
+> ![VIT Timetable Export Plugin - Export Timetable](images/export-timetable.gif)
 
-- Here is the whole process in action:
+### Assignment Upload page
 
-> ![VIT Timetable Export Plugin - in action](images/vit-tt-export.gif)
+- Go to the **'Assignment Upload'** page under `Academics > Digital Assignment Upload`
+- Select the semester
+- `Right Click > Export ICS File`
+  - The page will automatically navigate to all the course dashboards, parse the assignments, returns to this page to generate the `.ics` file
+- The `.ics` will be exported as `VIT-Assignment-Upload-Schedule-<semester-info>.ics`
+
+Here is the whole process in action:
+
+> ![VIT Timetable Export Plugin - Export Assignment Upload Schedule](images/export-assignment-upload.gif)
+
+### Exam Schedule page
+
+- Go to the **'Exam Schedule'** page under `Examination > Exam Schedule`
+- Select the semester and click on `Search`
+- `Right Click > Export ICS File`
+- The `.ics` will be exported as `VIT-Exam-Schedule-<semester-info>.ics`
+
+Here is the whole process in action:
+
+> ![VIT Timetable Export Plugin - Export Exam Schedule](images/export-exam-schedule.gif)
 
 ## Import ICS into Google Calendar
 
@@ -51,6 +75,7 @@ To import into Google Calendar
 
 - Click on the `+` sign next to `Other calendars` in the left pane and select `Create new calendar`
   - A new calendar will make it easy to manage (like toggling on/off, changing colors, delete, etc) and is strongly recommended rather than importing into any existing calendar
+  - Standalone events from `Exam Schedule` and `Assignment Upload Schedule` `.ics` files could however be imported into existing calendars if needed
 - Give a name to your calendar and click on `Create calendar`
 - Click on the `Import & Export` option in the left pane
 - Select the newly created calendar in the `Add to calendar` dropdown
@@ -83,23 +108,68 @@ To import into Google Calendar
 
 ## How it works
 
-> v1.2 requires a single user click after the semester is selected in the Timetable page to generate the `.ics` file.  After parsing the course details and weekly timetable in the Timetable page, the page automatically navigates to the Academic Calendar page, populates the correct Semester, Class Group and clicks through each of the months, parses them and finally generates the full `.ics` file.
+All of VTOP's content is dynamically generated.  There is a single URL `https://vtop.vit.ac.in/vtop/content` under which all content resides and the browser does not navigate to different pages for different sections.  To export content in different tables as `.ics` files, code needs to be injected and run as [Content Scripts](https://developer.chrome.com/docs/extensions/develop/concepts/content-scripts#capabilities).  Until [v1.2](https://github.com/PardhavMaradani/vit-timetable-export-plugin/tree/v1.2), the [MutationObserver](https://developer.mozilla.org/en-US/docs/Web/API/MutationObserver) API was used to observe for changes in relevant divs to detect the page and add UI elements for export.  [v1.3](https://github.com/PardhavMaradani/vit-timetable-export-plugin) and above registers a more generic and extensible [Context Menu](https://developer.chrome.com/docs/extensions/reference/api/contextMenus) item `Export ICS File` (right-click option) for the main content page, which when clicked on the relevant pages carries out the export.
 
-> v1.1 uses the academic calendar details for a given semester to create all the events, including additional instructional days, holidays and exams.  All the details mentioned below still apply, with a few more changes to observe for the `Academics Calendar` page, parsing the calendars on that page and saving them to `localStorage` to be later used in the `Time table` page
+Export of `.ics` files is currently supported for the following pages:
 
-All of VTOP's content is dynamically generated.  There is a single URL `https://vtop.vit.ac.in/vtop/content` under which all content resides and the browser does not navigate to different pages for different sections.  The code to export the Timetable data needs to run on the `Time Table` page.  There are a few ways to achieve this, all of which require code to be injected as [Content Scripts](https://developer.chrome.com/docs/extensions/develop/concepts/content-scripts#capabilities) and run:
+- Timetable page
+  - `Academics > Time Table`
+- Assignment Upload page
+  - `Academics > Digital Assignment Upload`
+- Exam Schedule page
+  - `Examination > Exam Schedule`
 
-- Register a [context menu](https://developer.chrome.com/docs/extensions/reference/api/contextMenus) item like `Export Timetable` (right-click option) for the main content page, which when clicked in the `Time Table` page, injects and runs the export code
-  - An outline of the method can be seen in the [context-menu-example](context-menu-example) folder (maybe add as backup in future)
-- Clicking on the extension icon or some action after that when on the `Time Table` page (needs the extension to be pinned, etc)
-- Observe the main content page to see if the `Time Table` content is loaded and then inject and run the export code.  This is the approach chosen here as it is slightly more user-friendly (though less robust than above for any future page changes)
-  - The [MutationObserver](https://developer.mozilla.org/en-US/docs/Web/API/MutationObserver) API provides the ability to watch for changes being made to the DOM tree
-  - `b5-pagewrapper` is the div under which most of the core page content resides (`b5pwO` is the observer object and `b5pwCb` is the callback when changes are observed)
-  - This div doesn't show up right after login, which is why the `page_outline` div needs to be observed till the `b5-pagewrapper` is found (`poO` is the observer object and `poCb` is the callback).  This observer is stopped as soon as `b5-pagewrapper` is found
-  - The `studentTimeTable` form in `b5-pagewrapper` indicates that the `Time Table` section is loaded and the HTML to show the export button (`iHtml`) is injected at the end of the form
-  - The click handler for the export button `exportCalendar` runs the code to parse the tables, generate the ICS text content and export the file
-    - The first table is parsed only for the course ID to course details mapping (`parseCourses`) so that the full course name and other details are used in the calendar event
-    - The second table provides the start and end times for all the theory and lab slots (first four rows) and the schedule for all the days of the week.  The first column has rows that span two column widths each and hence the column counts are adjusted accordingly depending on the row. `parseTT` parses this table and generates events corresponding to each weekday
-    - The ICS format follows a sample exported from Google Calendar and passes the iCalendar [validator](https://icalendar.org/validator.html) for standalone use or for importing events from it.  The file is exported as `VIT-<semester-info>.ics`
+In the **'Timetable page'**, when the export menu item is clicked, the course and time table details on that page are parsed and then the page automatically navigates to the **'Academics Calendar'** page, populates the correct Semester, Class Group and iterates through all the months of that semester to generate the `.ics` file.
+
+Navigation to the **'Academics Calendar'** page is through the click of the following anchor tag:
+
+```
+<a data-url='academics/common/CalendarPreview' ... href='javascript:void(0);'>
+```
+
+Clicking on this link programatically in the 'Content Script' performs the navigation, but also throws an error:
+
+```
+document.querySelector('a[data-url="academics/common/CalendarPreview"]').click();
+```
+
+```
+Refused to run the JavaScript URL because it violates the following Content Security Policy directive: ...
+```
+
+This turns out to be due to the inline href code in the anchor tag, which is doing nothing here, but still causes a problem.  Apparently, this is not a problem for other tags like `span`, `button`, etc.  Only the workaround suggested [here](https://www.youtube.com/watch?v=HVugG0psJkM) resolved the problem.  In addition to being able to navigate to a different section, we also need to know when that navigation is complete and the page is ready so that we can perform the next action.  Since the dynamic requests here are all `ajax` requests, the above hack was combined with the `ajaxStop` method described [here](https://stackoverflow.com/questions/3709597/wait-until-all-jquery-ajax-requests-are-done) as follows:
+
+```
+const clickAndCall = `
+    $(document).ajaxStop(function () {
+        $(this).unbind('ajaxStop');
+        window.dispatchEvent(new CustomEvent('reset'));
+    });
+    this.click();
+    this.removeAttribute('onreset');
+`;
+function callbackFunction() {
+    // called after the element is clicked
+    // and the corresponding ajax request is completed
+    ...
+}
+window.onreset = callbackFunction;
+element.setAttribute('onreset', clickAndCall);
+element.dispatchEvent(new CustomEvent('reset'));
+```
+
+The [Content Scripts](https://developer.chrome.com/docs/extensions/develop/concepts/content-scripts#capabilities) documentation suggests that communication with the embedding page be through the shared DOM and message passing.  The above code seems to achieve the same as it does the following:
+
+- Registers a callback function on the window's `reset` event
+- Sets the `onreset` attribute of the element with code that can execute in the embedding page
+  - The code registers for `ajaxStop`, which gets called when all `ajax` requests are completed and dispatches the `reset` event on the main window, which calls the main window's `onreset` event handler, which is the callback function configured
+  - The code also performs the click of that element and removes the `onreset` atttribute that was temporarily added
+- Dispatches the `reset` event on the element that triggers the click and the eventual callback when all `ajax` requests are completed
+
+This same method is used to populate the relevant 'Semsester', wait for the `ajax` request to complete, populate the 'Class Group', wait for that `ajax` request to complete, click through each of the months of the academic calendar and parsing the displayed calendar table after each request is complete untill all academic calendar months are parsed to put together the final `.ics` file.
+
+The same approach outlined above is followed in the **'Assignment Upload'** page, where each of the course dashboards have to be clicked through to display and then parse the assignment schedules.
+
+The **'Exam Schedule'** page has no such navigation and is a direct parsing of a single displayed table.
 
 > Note: Parsing raw data from HTML tables is always error-prone and is bound to break with any underlying page changes in the future.

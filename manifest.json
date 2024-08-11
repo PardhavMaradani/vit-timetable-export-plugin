@@ -1,14 +1,10 @@
 {
     "manifest_version": 3,
     "name": "VIT Timetable Export",
-    "version": "1.2",
+    "version": "1.3",
     "description": "Export VIT Timetable as iCalendar (.ics) File",
-    "content_scripts": [
-        {
-            "js": ["content-script.js"],
-            "matches": [
-                "https://vtop.vit.ac.in/vtop/content"
-            ]
-        }
-    ]
+    "permissions": ["contextMenus", "scripting", "activeTab"],
+    "background": {
+        "service_worker": "context-menu.js"
+    }
 }
