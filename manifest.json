@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "VIT Timetable Export",
-    "version": "1.3",
+    "version": "1.4",
     "description": "Export VIT Timetable as iCalendar (.ics) File",
     "permissions": ["contextMenus", "scripting", "activeTab"],
     "background": {

@@ -2,9 +2,7 @@
 function saveICS(calName, ics) {
     // Create a dummy hidden link to download
     const link = document.createElement('a');
-    const url = URL.createObjectURL(
-        new Blob([ics], { type: 'text/calendar; charset=utf-8;' })
-    );
+    const url = URL.createObjectURL(new Blob([ics], { type: 'text/calendar; charset=utf-8;' }));
     link.setAttribute('href', url);
     link.setAttribute('download', calName + '.ics');
     link.style.visibility = 'hidden';
@@ -185,6 +183,27 @@ function parseCourseAssignments() {
     return courseAssignments;
 }
 
+// To navigate to Academics Calendar page:
+//   document.querySelector('a[data-url="academics/common/CalendarPreview"]').click();
+// Calling above leads to this error even though the navigation works:
+//   Refused to run the JavaScript URL because it violates the following Content Security Policy directive: ...
+// This is because of the href='javascript:void(0)' in the anchor tag
+// We also need to know when the navigation is complete to make further changes
+// We use a hack inspired by https://www.youtube.com/watch?v=HVugG0psJkM and combine this as follows:
+//   window.onreset = callbackFunction;
+//   element.setAttribute('onreset', clickAndCallbackCode());
+//   element.dispatchEvent(new CustomEvent('reset'));
+function clickAndCallbackCode() {
+    return `
+        $(document).ajaxStop(function () {
+            $(this).unbind('ajaxStop');
+            window.dispatchEvent(new CustomEvent('reset'));
+        });
+        this.click();
+        this.removeAttribute('onreset');
+    `;
+}
+
 // Export ICS file from the Assignment Upload page
 function exportAssignmentUploadICS() {
     const semSubId = document.getElementById('semesterSubId');
@@ -195,22 +214,13 @@ function exportAssignmentUploadICS() {
     const dashboards = document.querySelectorAll('#fixedTableContainer > table > tbody > tr.tableContent button');
     // Function to click on each dashboard of course
     function selectDashboard(i) {
-        const clickAndCall = `
-            $(document).ajaxStop(function () {
-                $(this).unbind('ajaxStop');
-                window.dispatchEvent(new CustomEvent('reset'));
-            });
-            this.click();
-            this.removeAttribute('onreset');
-        `;
-        const dashboard = dashboards[i];
-        dashboard.setAttribute('onreset', clickAndCall);
-        dashboard.dispatchEvent(new CustomEvent('reset'));
+        dashboards[i].setAttribute('onreset', clickAndCallbackCode());
+        dashboards[i].dispatchEvent(new CustomEvent('reset'));
     }
     let courseAssignments = [];
     let dashboardIndex = 0;
     // Callback after dashboard for course is displayed
-    const afterDashboardClick = function(event) {
+    const afterDashboardDisplayed = function(event) {
         // Parse the displayed dashboard
         courseAssignments.push(parseCourseAssignments());
         if (dashboardIndex < dashboards.length - 1) {
@@ -225,7 +235,7 @@ function exportAssignmentUploadICS() {
             generateAssignmentEventsAndExport(semester, courseAssignments);
         }
     };
-    window.onreset = afterDashboardClick;
+    window.onreset = afterDashboardDisplayed;
     selectDashboard(dashboardIndex);
 }
 
@@ -431,35 +441,19 @@ function exportTimeTableICS() {
     const semester = semSubId.options[semSubId.selectedIndex].innerText;
     const courses = parseCourses();
     const tt = parseTT();
-    // Navigate to Academics Calendar page
-    // document.querySelector('a[data-url="academics/common/CalendarPreview"]').click();
-    // Calling above leads to this error even though the navigation works:
-    //   Refused to run the JavaScript URL because it violates the following Content Security Policy directive: ...
-    // This is because of the href='javascript:void(0)' in the anchor tag
-    // We also need to know when the navigation is complete to make further changes
-    // We use a hack inspired by https://www.youtube.com/watch?v=HVugG0psJkM and combine this as follows:
-    const clickAndCall = `
-        $(document).ajaxStop(function () {
-            $(this).unbind('ajaxStop');
-            window.dispatchEvent(new CustomEvent('reset'));
-        });
-        this.click();
-        this.removeAttribute('onreset');
-    `;
     function parseACalMonths() {
         // Callback after Class Group is updated
-        const afterClassGroupChange = function () {
+        const afterClassGroupUpdated = function () {
             const months = document.querySelectorAll('#getListForSemester a');
             // Function to click on each month of the academic calendar
             function selectMonth(i) {
-                const month = months[i];
-                month.setAttribute('onreset', clickAndCall);
-                month.dispatchEvent(new CustomEvent('reset'));
+                months[i].setAttribute('onreset', clickAndCallbackCode());
+                months[i].dispatchEvent(new CustomEvent('reset'));
             }
             let ac = {}
             let monthIndex = 0;
             // Callback after academic calendar for month is displayed
-            const afterMonthClick = function(event) {
+            const afterMonthDisplayed = function(event) {
                 const month = months[monthIndex].innerText;
                 // Parse the displayed month
                 ac[month] = parseACal();
@@ -473,11 +467,11 @@ function exportTimeTableICS() {
                     generateTTEventsAndExport(semester, courses, tt, ac);
                 }
             };
-            window.onreset = afterMonthClick;
+            window.onreset = afterMonthDisplayed;
             selectMonth(monthIndex);
         }
         // Callback after semester is updated
-        const afterSemesterChange = function () {
+        const afterSemesterUpdated = function () {
             const cgId = document.getElementById('classGroupId');
             for (let i = 0; i < cgId.options.length; i++) {
                 if (cgId.options[i].innerText == cg) {
@@ -485,23 +479,24 @@ function exportTimeTableICS() {
                     break;
                 }
             }
-            window.onreset = afterClassGroupChange;
+            window.onreset = afterClassGroupUpdated;
             // Change Class Group as per Timetable page
-            cgId.setAttribute('onreset', clickAndCall);
+            cgId.setAttribute('onreset', clickAndCallbackCode());
             cgId.dispatchEvent(new CustomEvent('reset'));
             cgId.dispatchEvent(new CustomEvent('change'));
         }
-        window.onreset = afterSemesterChange;
+        window.onreset = afterSemesterUpdated;
         // Change semester as per Timetable page
         const aCalSemId = document.getElementById('semesterSubId');
-        aCalSemId.setAttribute('onreset', clickAndCall);
+        aCalSemId.setAttribute('onreset', clickAndCallbackCode());
         aCalSemId.dispatchEvent(new CustomEvent('reset'));
         aCalSemId.selectedIndex = document.querySelector('#semesterSubId option[value=' + semId + ']').index;
         aCalSemId.dispatchEvent(new CustomEvent('change'));
     }
+    // Navigate to Academics Calendar page
     window.onreset = parseACalMonths;
     const link = document.querySelector('a[data-url="academics/common/CalendarPreview"]');
-    link.setAttribute('onreset', clickAndCall);
+    link.setAttribute('onreset', clickAndCallbackCode());
     link.dispatchEvent(new CustomEvent('reset'));
 }
 

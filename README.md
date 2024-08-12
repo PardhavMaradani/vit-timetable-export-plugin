@@ -14,7 +14,7 @@ The exported `.ics` files can be imported into Google Calendar or any other Cale
 
 ## Installation
 
-- Clone this repository or download the ZIP and unzip
+- Clone this repository or download the [zip](https://github.com/PardhavMaradani/vit-timetable-export-plugin/releases/latest) and unzip
 - Open Chrome extenions page by typing `chrome://extensions/`
 - Enable `Developer mode` on the top right
 - Click on `Load unpacked` button and select the `vit-timetable-export-plugin` folder where you cloned or unzipped this repository
@@ -140,7 +140,7 @@ Refused to run the JavaScript URL because it violates the following Content Secu
 This turns out to be due to the inline href code in the anchor tag, which is doing nothing here, but still causes a problem.  Apparently, this is not a problem for other tags like `span`, `button`, etc.  Only the workaround suggested [here](https://www.youtube.com/watch?v=HVugG0psJkM) resolved the problem.  In addition to being able to navigate to a different section, we also need to know when that navigation is complete and the page is ready so that we can perform the next action.  Since the dynamic requests here are all `ajax` requests, the above hack was combined with the `ajaxStop` method described [here](https://stackoverflow.com/questions/3709597/wait-until-all-jquery-ajax-requests-are-done) as follows:
 
 ```
-const clickAndCall = `
+const clickAndCallback = `
     $(document).ajaxStop(function () {
         $(this).unbind('ajaxStop');
         window.dispatchEvent(new CustomEvent('reset'));
@@ -154,7 +154,7 @@ function callbackFunction() {
     ...
 }
 window.onreset = callbackFunction;
-element.setAttribute('onreset', clickAndCall);
+element.setAttribute('onreset', clickAndCallback);
 element.dispatchEvent(new CustomEvent('reset'));
 ```
 
