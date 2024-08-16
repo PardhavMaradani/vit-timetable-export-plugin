@@ -108,7 +108,7 @@ To import into Google Calendar
 
 ## How it works
 
-All of VTOP's content is dynamically generated.  There is a single URL `https://vtop.vit.ac.in/vtop/content` under which all content resides and the browser does not navigate to different pages for different sections.  To export content in different tables as `.ics` files, code needs to be injected and run as [Content Scripts](https://developer.chrome.com/docs/extensions/develop/concepts/content-scripts#capabilities).  Until [v1.2](https://github.com/PardhavMaradani/vit-timetable-export-plugin/tree/v1.2), the [MutationObserver](https://developer.mozilla.org/en-US/docs/Web/API/MutationObserver) API was used to observe for changes in relevant divs to detect the page and add UI elements for export.  [v1.3](https://github.com/PardhavMaradani/vit-timetable-export-plugin) and above registers a more generic and extensible [Context Menu](https://developer.chrome.com/docs/extensions/reference/api/contextMenus) item `Export ICS File` (right-click option) for the main content page, which when clicked on the relevant pages carries out the export.
+All of VTOP's content is dynamically generated.  There is a single URL `https://vtop.vit.ac.in/vtop/content` under which all content resides and the browser does not navigate to different pages for different sections.  To export content in different tables as `.ics` files, code needs to be injected and run as [Content Scripts](https://developer.chrome.com/docs/extensions/develop/concepts/content-scripts).  Until [v1.2](https://github.com/PardhavMaradani/vit-timetable-export-plugin/tree/v1.2), the [MutationObserver](https://developer.mozilla.org/en-US/docs/Web/API/MutationObserver) API was used to observe for changes in relevant divs to detect the page and add UI elements for export.  [v1.3](https://github.com/PardhavMaradani/vit-timetable-export-plugin) and above registers a more generic and extensible [Context Menu](https://developer.chrome.com/docs/extensions/reference/api/contextMenus) item `Export ICS File` (right-click option) for the main content page, which when clicked on the relevant pages carries out the export.
 
 Export of `.ics` files is currently supported for the following pages:
 
@@ -158,7 +158,7 @@ element.setAttribute('onreset', clickAndCallback);
 element.dispatchEvent(new CustomEvent('reset'));
 ```
 
-The [Content Scripts](https://developer.chrome.com/docs/extensions/develop/concepts/content-scripts#capabilities) documentation suggests that communication with the embedding page be through the shared DOM and message passing.  The above code seems to achieve the same as it does the following:
+The [Content Scripts](https://developer.chrome.com/docs/extensions/develop/concepts/content-scripts#host-page-communication) documentation suggests that communication with the embedding page be through the shared DOM and message passing.  The above code achieves the same as it does the following:
 
 - Registers a callback function on the window's `reset` event
 - Sets the `onreset` attribute of the element with code that can execute in the embedding page
