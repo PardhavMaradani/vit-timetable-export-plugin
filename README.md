@@ -10,6 +10,7 @@ The exported `.ics` files can be imported into Google Calendar or any other Cale
 - [Usage](#usage)
 - [Import ICS into Google Calendar](#import-ics-into-google-calendar)
 - [Import ICS into other calendars](#import-ics-into-other-calendars)
+- [IFTTT - IF This Then That](#ifttt---if-this-then-that)
 - [How it works](#how-it-works)
 
 ## Installation
@@ -105,6 +106,14 @@ To import into Google Calendar
 > ![ICS Imported into macOS Calendar - Day](images/macos-calendar-day.png)
 
 > ![ICS Imported into macOS Calendar - Week](images/macos-calendar-week.png)
+
+## IFTTT - IF This Then That
+
+If your Android phone does not have native support to mute / unmute based on Calendar events, you can use [IFTTT](https://ifttt.com/) to achieve the same.
+
+The Applet to mute your Android phone when events start is: [VIT Timetable - Mute Android Phone At Start Of Calendar Events](https://ift.tt/E89YchI)
+
+The Applet to unmute your Android phone when events end is: [VIT Timetable - Unmute Android Phone At End Of Calendar Events](https://ift.tt/vwT6UkS)
 
 ## How it works
 

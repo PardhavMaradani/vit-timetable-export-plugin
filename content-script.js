@@ -157,6 +157,14 @@ function generateAssignmentEventsAndExport(semester, courseAssignments) {
                 end: getICSDateOnly(nextDate)
             };
             events.push(event);
+            // Add dummy event for IFTTT to trigger on event end and unmute
+            const eventForIFTTT = {
+                summary: summary,
+                description: description,
+                start: getICSDateTime(date, '00:15'),
+                end: getICSDateTime(date, '00:30'),
+            };
+            events.push(eventForIFTTT);
         }
     }
     const calName = 'VIT-Assignment-Upload-Schedule-' + semester.replace(/ /g, '-');
@@ -420,6 +428,13 @@ function generateTTEventsAndExport(semester, courses, tt, ac) {
                     end: getICSDateOnly(nextDate)
                 };
                 events.push(event);
+                // Add dummy event for IFTTT to trigger on event end and unmute
+                const eventForIFTTT = {
+                    summary: info + ' ' + detail,
+                    start: getICSDateTime(date, '00:15'),
+                    end: getICSDateTime(date, '00:30'),
+                };
+                events.push(eventForIFTTT);
             }
         }
     }
