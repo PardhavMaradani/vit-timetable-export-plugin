@@ -137,6 +137,7 @@ function exportExamScheduleICS() {
 // Generate Assignment Upload events and export ICS file
 function generateAssignmentEventsAndExport(semester, courseAssignments) {
     let events = [];
+    let dummyEventAdded = {};
     for (let i = 0; i < courseAssignments.length; i++) {
         const course = courseAssignments[i];
         for (let j = 0; j < course.assignments.length; j++) {
@@ -147,6 +148,9 @@ function generateAssignmentEventsAndExport(semester, courseAssignments) {
                 'Course Title: ' + course.title + '\\n' +
                 'Course Type: ' + course.type + '\\n' +
                 'Assignment Title: ' + assignment.title;
+            if (assignment.dueDate == '-') {
+                continue;
+            }
             const date = new Date(Date.parse(assignment.dueDate));
             const nextDate = new Date(date);
             nextDate.setDate(date.getDate() + 1);
@@ -157,14 +161,16 @@ function generateAssignmentEventsAndExport(semester, courseAssignments) {
                 end: getICSDateOnly(nextDate)
             };
             events.push(event);
-            // Add dummy event for IFTTT to trigger on event end and unmute
-            const eventForIFTTT = {
-                summary: summary,
-                description: description,
-                start: getICSDateTime(date, '00:15'),
-                end: getICSDateTime(date, '00:30'),
-            };
-            events.push(eventForIFTTT);
+            if (!(date in dummyEventAdded)) {
+                // Add dummy event for IFTTT to trigger on event end and unmute
+                const eventForIFTTT = {
+                    summary: 'Dummy event to trigger IFTTT unmute for all day events',
+                    start: getICSDateTime(date, '00:15'),
+                    end: getICSDateTime(date, '00:30'),
+                };
+                events.push(eventForIFTTT);
+                dummyEventAdded[date] = true;
+            }
         }
     }
     const calName = 'VIT-Assignment-Upload-Schedule-' + semester.replace(/ /g, '-');
@@ -372,6 +378,7 @@ function parseACal() {
 // Generate Timetable events as per Academic Calendar and export
 function generateTTEventsAndExport(semester, courses, tt, ac) {
     let events = [];
+    let dummyEventAdded = {};
     // Iterate over all days of academic calendar
     const weekdays = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
     for (let monthYear in ac) {
@@ -428,13 +435,15 @@ function generateTTEventsAndExport(semester, courses, tt, ac) {
                     end: getICSDateOnly(nextDate)
                 };
                 events.push(event);
-                // Add dummy event for IFTTT to trigger on event end and unmute
-                const eventForIFTTT = {
-                    summary: info + ' ' + detail,
-                    start: getICSDateTime(date, '00:15'),
-                    end: getICSDateTime(date, '00:30'),
-                };
-                events.push(eventForIFTTT);
+                if (!(date in dummyEventAdded)) {
+                    // Add dummy event for IFTTT to trigger on event end and unmute
+                    const eventForIFTTT = {
+                        summary: 'Dummy event to trigger IFTTT unmute for all day events',
+                        start: getICSDateTime(date, '00:15'),
+                        end: getICSDateTime(date, '00:30'),
+                    };
+                    events.push(eventForIFTTT);
+                }
             }
         }
     }
