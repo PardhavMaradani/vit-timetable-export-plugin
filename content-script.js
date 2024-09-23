@@ -111,6 +111,9 @@ function exportExamScheduleICS() {
             continue;
         }
         const date = cols[6].innerText;
+        if (date == '') {
+            continue;
+        }
         const [startTime, endTime] = cols[9].innerText.split(' - ');
         const summary = '(' + cols[3].innerText + ') ' + cols[2].innerText;
         const description =
@@ -346,6 +349,14 @@ function parseTT() {
                 start: sT[tol][cc],
                 end: eT[tol][cc]
             };
+            if (events[day].length > 0) {
+                const prevEvent = events[day][events[day].length - 1];
+                if (prevEvent.id == event.id && prevEvent.type == event.type && prevEvent.venue == event.venue) {
+                    // Merge consecutive slots of same course
+                    prevEvent.end = event.end;
+                    continue;
+                }
+            }
             events[day].push(event);
         }
     }
