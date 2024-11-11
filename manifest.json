@@ -1,8 +1,8 @@
 {
     "manifest_version": 3,
     "name": "VIT Timetable Export",
-    "version": "1.6",
-    "description": "Export VIT Timetable as iCalendar (.ics) File",
+    "version": "1.7",
+    "description": "Export VIT Timetables as iCalendar (.ics) File",
     "permissions": ["contextMenus", "scripting", "activeTab"],
     "background": {
         "service_worker": "context-menu.js"

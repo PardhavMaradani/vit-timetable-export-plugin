@@ -520,12 +520,16 @@ function exportTimeTableICS() {
             cgId.dispatchEvent(new CustomEvent('reset'));
             cgId.dispatchEvent(new CustomEvent('change'));
         }
-        window.onreset = afterSemesterUpdated;
         // Change semester as per Timetable page
+        const option = document.querySelector('#semesterSubId option[value=' + semId + ']');
+        if (!option) {
+            return alert('Semester not found in Academics Calendar');
+        }
+        window.onreset = afterSemesterUpdated;
         const aCalSemId = document.getElementById('semesterSubId');
         aCalSemId.setAttribute('onreset', clickAndCallbackCode());
         aCalSemId.dispatchEvent(new CustomEvent('reset'));
-        aCalSemId.selectedIndex = document.querySelector('#semesterSubId option[value=' + semId + ']').index;
+        aCalSemId.selectedIndex = option.index;
         aCalSemId.dispatchEvent(new CustomEvent('change'));
     }
     // Navigate to Academics Calendar page
