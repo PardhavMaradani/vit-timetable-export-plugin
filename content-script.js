@@ -409,9 +409,9 @@ function generateTTEventsAndExport(semester, courses, tt, ac) {
                 let dayEvents = tt[weekday];
                 if (dayEvents.length == 0) {
                     // Check for any other weekday order
-                    const i = detail.indexOf(' Day Order');
-                    if (i != -1) {
-                        weekday = detail.substring(1, i).substring(0, 3).toUpperCase();
+                    const m = detail.match(/(\w+) Day Order/);
+                    if (m) {
+                        weekday = m[1].substring(0, 3).toUpperCase();
                         dayEvents = tt[weekday];
                     }
                 }
