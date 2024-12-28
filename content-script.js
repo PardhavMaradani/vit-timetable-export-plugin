@@ -212,7 +212,15 @@ function parseCourseAssignments() {
 //   element.dispatchEvent(new CustomEvent('reset'));
 function clickAndCallbackCode() {
     return `
+        const nativeFetch = window.fetch;
+        window.fetch = function(...args) {
+            return nativeFetch.apply(window, args).finally(() => {
+                window.fetch = nativeFetch;
+                setTimeout(function() { window.dispatchEvent(new CustomEvent('reset')) }, 500);
+            });
+        }
         $(document).ajaxStop(function () {
+            window.fetch = nativeFetch;
             $(this).unbind('ajaxStop');
             window.dispatchEvent(new CustomEvent('reset'));
         });
@@ -247,7 +255,7 @@ function exportAssignmentUploadICS() {
             // All dashboards parsed
             window.onreset = null;
             // Return back to the main Assignment Upload page
-            document.querySelector('#daUpload div[align=left] > button').click();
+            document.querySelector('#daUpload div[align=center] > button').click();
             // Generate Assignment Upload events and export ICS
             generateAssignmentEventsAndExport(semester, courseAssignments);
         }
